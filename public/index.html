@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>EyeTicTacToe</title>
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css"
+      integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb"
+      crossorigin="anonymous"
+    />
+    <style type="text/css">
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 100%;
+        background: rgba(255, 255, 255, 0.8)
+          url('http://i.stack.imgur.com/FhHRx.gif') 50% 50% no-repeat;
+      }
+
+      /* When the body has the loading class, we turn
+   the scrollbar off with overflow:hidden */
+      body.loading {
+        overflow: hidden;
+      }
+
+      /* Anytime the body has the loading class, our
+   modal element will be visible */
+      body.loading .modal {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="jumbotron">
+        <h1>EyeTicTacToe</h1>
+        <p>
+          Detect GameState using images.
+        </p>
+      </div>
+      <div class="row">
+        <div class="col-sm">
+          <div class="card">
+            <div class="card-header">
+              Original Image
+            </div>
+            <div class="card-block text-center">
+              <img id="imageOriginal" alt="Upload" class="card-img-top" />
+            </div>
+            <div class="card-footer text-muted">
+              <input type="file" id="imageInput" name="file" />
+            </div>
+          </div>
+        </div>
+        <div class="col-sm">
+          <div class="card">
+            <div class="card-header">
+              Modified Image
+            </div>
+            <div class="card-block">
+              <canvas id="imageCanvas"></canvas>
+            </div>
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item">
+                <button type="button" id="detectButton" class="btn btn-primary">
+                  Detect
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal"></div>
+    <script defer type="text/javascript">
+      document.body.classList.add('loading');
+
+      let imgElement = document.getElementById('imageOriginal');
+      let inputElement = document.getElementById('imageInput');
+      inputElement.addEventListener(
+        'change',
+        e => {
+          imgElement.src = URL.createObjectURL(e.target.files[0]);
+        },
+        false
+      );
+      let mat;
+
+      imgElement.onload = function() {
+        mat = cv.imread(imgElement);
+        cv.imshow('imageCanvas', mat);
+      };
+
+      document.getElementById('detectButton').onclick = function() {
+        this.disabled = true;
+
+        let mat = cv.imread('imageCanvas');
+        console.log(mat.shape, '--------height-------');
+        let width = 538;
+        let height = 404;
+
+        let dst = mat.clone();
+        let circles = new cv.Mat();
+        cv.cvtColor(mat, mat, cv.COLOR_RGBA2GRAY, 0);
+        // Find Coins
+        cv.HoughCircles(mat, circles, cv.HOUGH_GRADIENT, 1, 45, 75, 40, 0, 100);
+        // find grid
+        let outputArr = new cv.Mat();
+        cv.goodFeaturesToTrack(mat, outputArr, 4, 0.01, 10);
+
+        // draw circles around coins
+        let coinCentersArr = [];
+        for (let i = 0; i < circles.cols; ++i) {
+          let x = circles.data32F[i * 3];
+          let y = circles.data32F[i * 3 + 1];
+          coinCentersArr.push({ x, y });
+          let radius = circles.data32F[i * 3 + 2];
+          let center = new cv.Point(x, y);
+          cv.circle(dst, center, radius, [0, 0, 0, 255], 3);
+        }
+        // draw grids 4 central points
+        let centralPointsArr = [];
+        for (let i = 0; i < 4; i++) {
+          let x1 = outputArr.data32F[i * 2];
+          let y1 = outputArr.data32F[i * 2 + 1];
+          let center1 = new cv.Point(x1, y1);
+          centralPointsArr.push({ x: x1, y: y1 });
+          cv.circle(dst, center1, 5, [0, 0, 0, 255], -1);
+        }
+
+        //show canvas
+        cv.imshow('imageCanvas', dst);
+        mat.delete();
+        dst.delete();
+        circles.delete();
+
+        document.testjs(centralPointsArr, coinCentersArr);
+        this.disabled = false;
+      };
+
+      function onOpenCvReady() {
+        document.body.classList.remove('loading');
+      }
+    </script>
+    <script
+      async
+      src="opencv.js"
+      onload="onOpenCvReady();"
+      type="text/javascript"
+    ></script>
+    <script src="test.js"></script>
+  </body>
+</html>
